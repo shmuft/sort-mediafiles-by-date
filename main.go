@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"flag"
 	"fmt"
-	"github.com/rwcarlsen/goexif/exif"
 	"io"
 	"io/ioutil"
 	"os"
@@ -14,13 +14,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"trimmer.io/go-xmp/models/xmp_base"
+
+	"github.com/rwcarlsen/goexif/exif"
+	xmpbase "trimmer.io/go-xmp/models/xmp_base"
 	"trimmer.io/go-xmp/xmp"
 )
 
 var sourceDir = string(filepath.Separator) + "temp"
 var exportDir = string(filepath.Separator) + "temp2"
-
 var months = make(map[string]string)
 
 const appleEpochAdjustment = 2082844800
@@ -48,9 +49,14 @@ func init() {
 }
 
 func main() {
+	flag.StringVar(&sourceDir, "source_dir", string(filepath.Separator)+"temp", "Source directory")
+	flag.StringVar(&exportDir, "export_dir", string(filepath.Separator)+"temp2", "Export directory")
+	flag.Parse()
+
 	files, err := ioutil.ReadDir(sourceDir)
 	if err != nil {
-		panic(err)
+		printError(err)
+		return
 	}
 	numberFiles := len(files)
 
