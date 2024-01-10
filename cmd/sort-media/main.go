@@ -7,7 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -20,9 +20,25 @@ import (
 	"trimmer.io/go-xmp/xmp"
 )
 
+type MediaFileType int
+
+const (
+	ImageType MediaFileType = iota
+	VideoType
+	XMPType
+	UnknownMediaType
+)
+
+type FileInfoStruct struct {
+	absolutePath string
+	fileInfo     fs.FileInfo
+}
+
 var sourceDir = string(filepath.Separator) + "temp"
 var exportDir = string(filepath.Separator) + "temp2"
+var videoExportDir = string(filepath.Separator) + "tempVideo"
 var months = make(map[string]string)
+var filesList []FileInfoStruct
 
 const appleEpochAdjustment = 2082844800
 
@@ -48,63 +64,87 @@ func init() {
 	months["December"] = "12"
 }
 
-func main() {
-	flag.StringVar(&sourceDir, "source_dir", string(filepath.Separator)+"temp", "Source directory")
-	flag.StringVar(&exportDir, "export_dir", string(filepath.Separator)+"temp2", "Export directory")
-	flag.Parse()
+func parseFile(file FileInfoStruct) (string, error) {
+	fd, err := os.Open(file.absolutePath)
+	if err != nil {
+		return "", err
+	}
 
-	files, err := ioutil.ReadDir(sourceDir)
+	var created time.Time
+
+	var fileType MediaFileType
+	switch strings.ToLower(filepath.Ext(file.absolutePath)) {
+	case ".mov":
+		created, err = getVideoCreationTimeMetadata(fd)
+		fileType = VideoType
+	case ".xmp":
+		created, err = getXmpCreationTimeMetadata(fd)
+		fileType = XMPType
+	case ".thm":
+		created, err = sortImage(fd)
+		fileType = VideoType
+	default:
+		created, err = sortImage(fd)
+		fileType = ImageType
+	}
+
+	if err != nil {
+		printError(err)
+		err = fd.Close()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	err = fd.Close()
+	if err != nil {
+		return "", err
+	}
+
+	dstFilePath, err := moveFileToNewLocation(file.absolutePath, file.fileInfo.Name(), fileType, created)
+	if err != nil {
+		return "", err
+	}
+
+	return dstFilePath, nil
+}
+
+func parseDirectory(dirpath string) {
+	files, err := os.ReadDir(dirpath)
 	if err != nil {
 		printError(err)
 		return
 	}
-	numberFiles := len(files)
 
-	for i, file := range files {
-		fmt.Print(fmt.Sprintf("%3d", int(float64(i)/float64(numberFiles)*100)) + "%| " + file.Name())
-
-		filePath := path.Join(sourceDir, file.Name())
-		fd, err := os.Open(filePath)
-		if err != nil {
-			printError(err)
+	for _, file := range files {
+		if file.IsDir() {
+			parseDirectory(dirpath + string(filepath.Separator) + file.Name())
 			continue
 		}
+		fileInfo, _ := file.Info()
+		filesList = append(filesList, FileInfoStruct{dirpath + string(filepath.Separator) + fileInfo.Name(), fileInfo})
+	}
+}
 
-		var created time.Time
+func main() {
+	flag.StringVar(&sourceDir, "source_dir", string(filepath.Separator)+"temp", "Source directory")
+	flag.StringVar(&exportDir, "export_dir", string(filepath.Separator)+"temp2", "Export directory")
+	flag.StringVar(&videoExportDir, "video_export_dir", string(filepath.Separator)+"tempVideo", "Video export directory")
+	flag.Parse()
 
-		switch strings.ToLower(filepath.Ext(filePath)) {
-		case ".mov":
-			created, err = getVideoCreationTimeMetadata(fd)
-			break
-		case ".xmp":
-			created, err = getXmpCreationTimeMetadata(fd)
-			break
-		default:
-			created, err = sortImage(fd)
-		}
+	parseDirectory(sourceDir)
 
-		if err != nil {
-			printError(err)
-			err = fd.Close()
+	if len(filesList) > 0 {
+		numberFiles := len(filesList)
+		for i, file := range filesList {
+			fmt.Print(fmt.Sprintf("%3d", int(float64(i)/float64(numberFiles)*100)) + "%| " + file.fileInfo.Name())
+			dstFilePath, err := parseFile(file)
 			if err != nil {
-				printError(err)
+				fmt.Println(" " + err.Error())
+				continue
 			}
-			continue
+			fmt.Print(" to " + dstFilePath + "\n")
 		}
-
-		err = fd.Close()
-		if err != nil {
-			printError(err)
-			continue
-		}
-
-		dstFilePath, err := moveFileToNewLocation(filePath, file.Name(), created)
-		if err != nil {
-			printError(err)
-			continue
-		}
-
-		fmt.Print(" to " + dstFilePath + "\n")
 	}
 
 	showHappyEnd()
@@ -159,7 +199,7 @@ func getVideoCreationTimeMetadata(videoBuffer io.ReadSeeker) (time.Time, error) 
 }
 
 func getXmpCreationTimeMetadata(f io.ReadSeeker) (time.Time, error) {
-	b, err := ioutil.ReadAll(f)
+	b, err := io.ReadAll(f)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -188,18 +228,37 @@ func sortImage(f io.ReadSeeker) (time.Time, error) {
 	return resultDateTime, nil
 }
 
-func moveFileToNewLocation(filePath string, fileName string, created time.Time) (string, error) {
+func moveFileToNewLocation(filePath string, fileName string, fileType MediaFileType, created time.Time) (string, error) {
 	day := fmt.Sprintf("%02d", created.Day())
 	month := months[created.Month().String()]
 	year := strconv.Itoa(created.Year())
 
-	exportPath := path.Join(exportDir, year, month, day)
+	var exportPath string
+
+	switch fileType {
+	case ImageType:
+		exportPath = path.Join(exportDir, year, month, day)
+	case XMPType:
+		exportPath = path.Join(exportDir, year, month, day)
+	case VideoType:
+		exportPath = path.Join(videoExportDir, year, month, day)
+	}
+
 	err := os.MkdirAll(exportPath, 0777)
 	if err != nil {
 		return "", err
 	}
 
 	dst := path.Join(exportPath, fileName)
+
+	if _, err := os.Stat(dst); err == nil {
+		return dst, errors.New("file already exist")
+	} else if errors.Is(err, os.ErrNotExist) {
+		// ok
+	} else {
+		return dst, errors.New("some problems")
+	}
+
 	err = os.Rename(filePath, dst)
 	if err != nil {
 		return "", err

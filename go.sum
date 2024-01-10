@@ -1,0 +1,4 @@
+github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd h1:CmH9+J6ZSsIjUK3dcGsnCnO41eRBOnY12zwkn5qVwgc=
+github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd/go.mod h1:hPqNNc0+uJM6H+SuU8sEs5K5IQeKccPqeSjfgcKGgPk=
+trimmer.io/go-xmp v0.0.0-20200923092433-f9b6ca6c4a87 h1:E09AnUbsrQCJHswQWo19EX41uvRVtfC2QP8jieCLktA=
+trimmer.io/go-xmp v0.0.0-20200923092433-f9b6ca6c4a87/go.mod h1:SMaHrR8/c7YtKZ2zt8r9n93tJjQQOGAagAewi9axCj4=
