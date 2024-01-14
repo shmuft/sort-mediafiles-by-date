@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -122,12 +123,19 @@ func parseFile(file FileInfoStruct) (string, error) {
 	fd.Close()
 
 	if err != nil {
-		return "", err
-	}
+		//Порпробуем выдрать дату из файла
+		re, _ := regexp.Compile(`\d{8}`)
+		res := re.FindString(file.fileInfo.Name())
+		if len(res) == 0 {
+			return "", err
+		}
 
-	// if created.Year() < 1971 {
-	// 	return "", fmt.Errorf("create year %d is less then 1971", created.Year())
-	// }
+		year, _ := strconv.ParseInt(res[0:4], 10, 64)
+		month, _ := strconv.ParseInt(res[4:6], 10, 64)
+		day, _ := strconv.ParseInt(res[6:8], 10, 64)
+
+		created = time.Date(int(year), time.Month(month), int(day), 0, 0, 0, 0, time.UTC)
+	}
 
 	dstFilePath, err := moveFileToNewLocation(file.absolutePath, file.fileInfo.Name(), fileType, created)
 	if err != nil {
