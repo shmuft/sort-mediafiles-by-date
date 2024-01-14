@@ -70,6 +70,8 @@ func parseFile(file FileInfoStruct) (string, error) {
 		return "", err
 	}
 
+	defer fd.Close()
+
 	var created time.Time
 
 	var fileType MediaFileType
@@ -77,29 +79,27 @@ func parseFile(file FileInfoStruct) (string, error) {
 	case ".mov":
 		created, err = getVideoCreationTimeMetadata(fd)
 		fileType = VideoType
-	case ".xmp":
-		created, err = getXmpCreationTimeMetadata(fd)
-		fileType = XMPType
+	case ".mp4":
+		created, err = getVideoCreationTimeMetadata(fd)
+		fileType = VideoType
 	case ".thm":
 		created, err = sortImage(fd)
 		fileType = VideoType
+	case ".xmp":
+		created, err = getXmpCreationTimeMetadata(fd)
+		fileType = XMPType
 	default:
 		created, err = sortImage(fd)
 		fileType = ImageType
 	}
 
 	if err != nil {
-		printError(err)
-		err = fd.Close()
-		if err != nil {
-			return "", err
-		}
-	}
-
-	err = fd.Close()
-	if err != nil {
 		return "", err
 	}
+
+	// if created.Year() < 1971 {
+	// 	return "", fmt.Errorf("create year %d is less then 1971", created.Year())
+	// }
 
 	dstFilePath, err := moveFileToNewLocation(file.absolutePath, file.fileInfo.Name(), fileType, created)
 	if err != nil {
@@ -109,21 +109,25 @@ func parseFile(file FileInfoStruct) (string, error) {
 	return dstFilePath, nil
 }
 
-func parseDirectory(dirpath string) {
+func parseDirectory(dirpath string) error {
 	files, err := os.ReadDir(dirpath)
 	if err != nil {
-		printError(err)
-		return
+		return err
 	}
 
 	for _, file := range files {
 		if file.IsDir() {
-			parseDirectory(dirpath + string(filepath.Separator) + file.Name())
+			err = parseDirectory(dirpath + string(filepath.Separator) + file.Name())
+			if err != nil {
+				return err
+			}
 			continue
 		}
 		fileInfo, _ := file.Info()
 		filesList = append(filesList, FileInfoStruct{dirpath + string(filepath.Separator) + fileInfo.Name(), fileInfo})
 	}
+
+	return nil
 }
 
 func main() {
@@ -132,7 +136,11 @@ func main() {
 	flag.StringVar(&videoExportDir, "video_export_dir", string(filepath.Separator)+"tempVideo", "Video export directory")
 	flag.Parse()
 
-	parseDirectory(sourceDir)
+	err := parseDirectory(sourceDir)
+	if err != nil {
+		printError(err)
+		return
+	}
 
 	if len(filesList) > 0 {
 		numberFiles := len(filesList)
