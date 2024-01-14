@@ -64,13 +64,39 @@ func init() {
 	months["December"] = "12"
 }
 
+func main() {
+	flag.StringVar(&sourceDir, "source_dir", string(filepath.Separator)+"temp", "Source directory")
+	flag.StringVar(&exportDir, "export_dir", string(filepath.Separator)+"temp2", "Export directory")
+	flag.StringVar(&videoExportDir, "video_export_dir", string(filepath.Separator)+"tempVideo", "Video export directory")
+	flag.Parse()
+
+	err := parseDirectory(sourceDir)
+	if err != nil {
+		printError(err)
+		return
+	}
+
+	if len(filesList) > 0 {
+		numberFiles := len(filesList)
+		for i, file := range filesList {
+			fmt.Print(fmt.Sprintf("%3d", int(float64(i)/float64(numberFiles)*100)) + "%| " + file.fileInfo.Name())
+			dstFilePath, err := parseFile(file)
+			if err != nil {
+				fmt.Println(" " + err.Error())
+				continue
+			}
+			fmt.Print(" to " + dstFilePath + "\n")
+		}
+	}
+
+	showHappyEnd()
+}
+
 func parseFile(file FileInfoStruct) (string, error) {
 	fd, err := os.Open(file.absolutePath)
 	if err != nil {
 		return "", err
 	}
-
-	defer fd.Close()
 
 	var created time.Time
 
@@ -92,6 +118,8 @@ func parseFile(file FileInfoStruct) (string, error) {
 		created, err = sortImage(fd)
 		fileType = ImageType
 	}
+
+	fd.Close()
 
 	if err != nil {
 		return "", err
@@ -128,34 +156,6 @@ func parseDirectory(dirpath string) error {
 	}
 
 	return nil
-}
-
-func main() {
-	flag.StringVar(&sourceDir, "source_dir", string(filepath.Separator)+"temp", "Source directory")
-	flag.StringVar(&exportDir, "export_dir", string(filepath.Separator)+"temp2", "Export directory")
-	flag.StringVar(&videoExportDir, "video_export_dir", string(filepath.Separator)+"tempVideo", "Video export directory")
-	flag.Parse()
-
-	err := parseDirectory(sourceDir)
-	if err != nil {
-		printError(err)
-		return
-	}
-
-	if len(filesList) > 0 {
-		numberFiles := len(filesList)
-		for i, file := range filesList {
-			fmt.Print(fmt.Sprintf("%3d", int(float64(i)/float64(numberFiles)*100)) + "%| " + file.fileInfo.Name())
-			dstFilePath, err := parseFile(file)
-			if err != nil {
-				fmt.Println(" " + err.Error())
-				continue
-			}
-			fmt.Print(" to " + dstFilePath + "\n")
-		}
-	}
-
-	showHappyEnd()
 }
 
 func getVideoCreationTimeMetadata(videoBuffer io.ReadSeeker) (time.Time, error) {
@@ -271,6 +271,7 @@ func moveFileToNewLocation(filePath string, fileName string, fileType MediaFileT
 	if err != nil {
 		return "", err
 	}
+
 	return dst, nil
 }
 
