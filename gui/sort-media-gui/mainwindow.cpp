@@ -23,6 +23,8 @@ MainWindow::MainWindow(QWidget *parent)
     parseButton = new QPushButton(tr("Распарсить файлы!"));
     connect(parseButton, &QPushButton::clicked, this, &MainWindow::slot_parse);
 
+    useModificationTimeAsCreatedCheckBox = new QCheckBox("Если нет даты в exif и в имени файла - использовать дату модификации файла");
+
     sourceLabel = new QLabel;
     imageLabel = new QLabel;
     videoLabel = new QLabel;
@@ -31,6 +33,7 @@ MainWindow::MainWindow(QWidget *parent)
     layout->addWidget(selectSourceDirectory);
     layout->addWidget(selectImageDestination);
     layout->addWidget(selectVideoDestination);
+    layout->addWidget(useModificationTimeAsCreatedCheckBox);
     layout->addWidget(parseButton);
     layout->addWidget(sourceLabel);
     layout->addWidget(imageLabel);
@@ -44,10 +47,12 @@ MainWindow::MainWindow(QWidget *parent)
     sourceDir = settings.value("source_dir", "").toString();
     imageDir = settings.value("image_dir", "").toString();
     videoDir = settings.value("video_dir", "").toString();
+    useModificationTimeAsCreated = settings.value("use_modification_time_as_created", false).toBool();
 
     sourceLabel->setText(sourceDir);
     imageLabel->setText(imageDir);
     videoLabel->setText(videoDir);
+    useModificationTimeAsCreatedCheckBox->setChecked(useModificationTimeAsCreated);
 }
 
 MainWindow::~MainWindow() {
@@ -56,6 +61,7 @@ MainWindow::~MainWindow() {
     settings.setValue("source_dir", sourceDir);
     settings.setValue("image_dir", imageDir);
     settings.setValue("video_dir", videoDir);
+    settings.setValue("use_modification_time_as_created", useModificationTimeAsCreatedCheckBox->isChecked());
 }
 
 void MainWindow::slot_selectSource()
@@ -110,13 +116,13 @@ void MainWindow::slot_parse()
     dialog->setLayout(layout);
     dialog->show();
 
-
     QString program = "sort-media.exe";
     QStringList arguments;
     arguments.append(QString("--source_dir=%1").arg(sourceDir));
     arguments.append(QString("--export_dir=%1").arg(imageDir));
     arguments.append(QString("--video_export_dir=%1").arg(videoDir));
-
+    if (useModificationTimeAsCreatedCheckBox->isChecked())
+        arguments.append(QString("--use_mod_time_as_created"));
 
     QProcess myProcess(this);
     connect(&myProcess, &QProcess::readyReadStandardOutput, doc,

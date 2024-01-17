@@ -39,6 +39,7 @@ var sourceDir = string(filepath.Separator) + "temp"
 var exportDir = string(filepath.Separator) + "temp2"
 var videoExportDir = string(filepath.Separator) + "tempVideo"
 var months = make(map[string]string)
+var useModificationTimeAsCreated = bool(false)
 var filesList []FileInfoStruct
 
 const appleEpochAdjustment = 2082844800
@@ -69,6 +70,7 @@ func main() {
 	flag.StringVar(&sourceDir, "source_dir", string(filepath.Separator)+"temp", "Source directory")
 	flag.StringVar(&exportDir, "export_dir", string(filepath.Separator)+"temp2", "Export directory")
 	flag.StringVar(&videoExportDir, "video_export_dir", string(filepath.Separator)+"tempVideo", "Video export directory")
+	flag.BoolVar(&useModificationTimeAsCreated, "use_mod_time_as_created", false, "Use modification time as created when no date in exif or filename")
 	flag.Parse()
 
 	err := parseDirectory(sourceDir)
@@ -126,15 +128,22 @@ func parseFile(file FileInfoStruct) (string, error) {
 		//Порпробуем выдрать дату из файла
 		re, _ := regexp.Compile(`\d{8}`)
 		res := re.FindString(file.fileInfo.Name())
-		if len(res) == 0 {
-			return "", err
+		if len(res) != 0 {
+			year, _ := strconv.ParseInt(res[0:4], 10, 64)
+			month, _ := strconv.ParseInt(res[4:6], 10, 64)
+			day, _ := strconv.ParseInt(res[6:8], 10, 64)
+
+			created = time.Date(int(year), time.Month(month), int(day), 0, 0, 0, 0, time.UTC)
+		} else {
+			if !useModificationTimeAsCreated {
+				return "", err
+			}
+
+			info, _ := os.Stat(file.absolutePath)
+			created = info.ModTime()
+
 		}
 
-		year, _ := strconv.ParseInt(res[0:4], 10, 64)
-		month, _ := strconv.ParseInt(res[4:6], 10, 64)
-		day, _ := strconv.ParseInt(res[6:8], 10, 64)
-
-		created = time.Date(int(year), time.Month(month), int(day), 0, 0, 0, 0, time.UTC)
 	}
 
 	dstFilePath, err := moveFileToNewLocation(file.absolutePath, file.fileInfo.Name(), fileType, created)

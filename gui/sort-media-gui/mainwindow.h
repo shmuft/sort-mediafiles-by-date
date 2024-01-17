@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLabel>
+#include <QCheckBox>
 
 class MainWindow : public QMainWindow
 {
@@ -18,6 +19,7 @@ private:
     QPushButton* selectImageDestination;
     QPushButton* selectVideoDestination;
     QPushButton* parseButton;
+    QCheckBox* useModificationTimeAsCreatedCheckBox;
 
     QLabel* sourceLabel;
     QLabel* imageLabel;
@@ -26,6 +28,7 @@ private:
     QString sourceDir;
     QString imageDir;
     QString videoDir;
+    bool useModificationTimeAsCreated;
 
 
 private slots:
