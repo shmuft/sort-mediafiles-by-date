@@ -7,6 +7,8 @@
 #include <QSettings>
 #include <QTextDocument>
 #include <QTextEdit>
+#include <QCoreApplication>
+#include <QTimer>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -107,13 +109,25 @@ void MainWindow::slot_parse()
         return;
     }
 
-    QTextEdit *doc = new QTextEdit;
+    setEnabled(false);
 
+    QTextEdit *doc = new QTextEdit;
+    QLabel* label = new QLabel;
+    QPushButton* closeButton = new QPushButton(tr("Закрыть"));
     QVBoxLayout* layout = new QVBoxLayout;
+    layout->addWidget(label);
     layout->addWidget(doc);
+    layout->addWidget(closeButton);
 
     QDialog* dialog = new QDialog(this);
+    connect(closeButton, &QPushButton::pressed, dialog, &QDialog::accept);
+
+    dialog->setEnabled(false);
+    dialog->setWindowModality(Qt::WindowModality::WindowModal);
+    dialog->setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
+    dialog->resize(800, 600);
     dialog->setLayout(layout);
+
     dialog->show();
 
     QString program = "sort-media.exe";
@@ -123,22 +137,28 @@ void MainWindow::slot_parse()
     arguments.append(QString("--video_export_dir=%1").arg(videoDir));
     if (useModificationTimeAsCreatedCheckBox->isChecked())
         arguments.append(QString("--use_mod_time_as_created"));
+    arguments.append(QString("--sync_std_in_out"));
 
     QProcess myProcess(this);
     connect(&myProcess, &QProcess::readyReadStandardOutput, doc,
             [&myProcess, doc]()
             {
+        QString str = myProcess.readAllStandardOutput();
         doc->moveCursor(QTextCursor::End);
-        doc->insertPlainText(myProcess.readAllStandardOutput());
+        doc->insertPlainText(str);
+        QCoreApplication::processEvents();
+        myProcess.write("done\n");
     });
 
     myProcess.start(program, arguments);
     if (!myProcess.waitForStarted())
         return;
 
-    if (!myProcess.waitForFinished())
+    if (!myProcess.waitForFinished(-1))
         return;
 
-    QByteArray result = myProcess.readAll();
-    qDebug() << result;
+    label->setText(tr("Всё!"));
+    doc->moveCursor(QTextCursor::End);
+    dialog->setEnabled(true);
+    setEnabled(true);
 }

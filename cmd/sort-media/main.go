@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -40,6 +41,7 @@ var exportDir = string(filepath.Separator) + "temp2"
 var videoExportDir = string(filepath.Separator) + "tempVideo"
 var months = make(map[string]string)
 var useModificationTimeAsCreated = bool(false)
+var syncSTDInOut = bool(false)
 var filesList []FileInfoStruct
 
 const appleEpochAdjustment = 2082844800
@@ -71,6 +73,7 @@ func main() {
 	flag.StringVar(&exportDir, "export_dir", string(filepath.Separator)+"temp2", "Export directory")
 	flag.StringVar(&videoExportDir, "video_export_dir", string(filepath.Separator)+"tempVideo", "Video export directory")
 	flag.BoolVar(&useModificationTimeAsCreated, "use_mod_time_as_created", false, "Use modification time as created when no date in exif or filename")
+	flag.BoolVar(&syncSTDInOut, "sync_std_in_out", false, "Sync STD In Out")
 	flag.Parse()
 
 	err := parseDirectory(sourceDir)
@@ -79,16 +82,23 @@ func main() {
 		return
 	}
 
+	scanner := bufio.NewScanner(os.Stdin)
+	writer := bufio.NewWriter(os.Stdout)
+
 	if len(filesList) > 0 {
 		numberFiles := len(filesList)
 		for i, file := range filesList {
-			fmt.Print(fmt.Sprintf("%3d", int(float64(i)/float64(numberFiles)*100)) + "%| " + file.fileInfo.Name())
+			fmt.Fprint(writer, fmt.Sprintf("%3d", int(float64(i)/float64(numberFiles)*100))+"%| "+file.fileInfo.Name())
 			dstFilePath, err := parseFile(file)
 			if err != nil {
-				fmt.Println(" " + err.Error())
+				fmt.Fprintln(writer, " "+err.Error())
 				continue
 			}
-			fmt.Print(" to " + dstFilePath + "\n")
+			fmt.Fprint(writer, " to "+dstFilePath+"\n")
+			writer.Flush()
+			if syncSTDInOut {
+				scanner.Scan()
+			}
 		}
 	}
 
@@ -141,9 +151,7 @@ func parseFile(file FileInfoStruct) (string, error) {
 
 			info, _ := os.Stat(file.absolutePath)
 			created = info.ModTime()
-
 		}
-
 	}
 
 	dstFilePath, err := moveFileToNewLocation(file.absolutePath, file.fileInfo.Name(), fileType, created)
