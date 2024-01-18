@@ -121,6 +121,12 @@ func parseFile(file FileInfoStruct) (string, error) {
 	case ".mp4":
 		created, err = getVideoCreationTimeMetadata(fd)
 		fileType = VideoType
+	case ".avi":
+		created, err = getVideoCreationTimeMetadata(fd)
+		fileType = VideoType
+	case ".3gp":
+		created, err = getVideoCreationTimeMetadata(fd)
+		fileType = VideoType
 	case ".thm":
 		created, err = sortImage(fd)
 		fileType = VideoType
