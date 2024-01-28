@@ -31,15 +31,22 @@ MainWindow::MainWindow(QWidget *parent)
     imageLabel = new QLabel;
     videoLabel = new QLabel;
 
+    QGridLayout *labelsLayout = new QGridLayout;
+    labelsLayout->addWidget(new QLabel(tr("Откуда:")), 0, 0);
+    labelsLayout->addWidget(sourceLabel, 0, 1);
+    labelsLayout->addWidget(new QLabel(tr("Куда Фото:")), 1, 0);
+    labelsLayout->addWidget(imageLabel, 1, 1);
+    labelsLayout->addWidget(new QLabel(tr("Куда Видео:")), 2, 0);
+    labelsLayout->addWidget(videoLabel, 2, 1);
+
     QVBoxLayout* layout = new QVBoxLayout;
     layout->addWidget(selectSourceDirectory);
     layout->addWidget(selectImageDestination);
     layout->addWidget(selectVideoDestination);
     layout->addWidget(useModificationTimeAsCreatedCheckBox);
     layout->addWidget(parseButton);
-    layout->addWidget(sourceLabel);
-    layout->addWidget(imageLabel);
-    layout->addWidget(videoLabel);
+    layout->addLayout(labelsLayout);
+
     QWidget* widget = new QWidget;
     widget->setLayout(layout);
     setCentralWidget(widget);

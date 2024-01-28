@@ -36,6 +36,12 @@ type FileInfoStruct struct {
 	fileInfo     fs.FileInfo
 }
 
+type ResultInfoStruct struct {
+	numberOkFiles  int
+	numberBadFiles int
+	totalFiles     int
+}
+
 var sourceDir = string(filepath.Separator) + "temp"
 var exportDir = string(filepath.Separator) + "temp2"
 var videoExportDir = string(filepath.Separator) + "tempVideo"
@@ -43,6 +49,7 @@ var months = make(map[string]string)
 var useModificationTimeAsCreated = bool(false)
 var syncSTDInOut = bool(false)
 var filesList []FileInfoStruct
+var resultInfo ResultInfoStruct
 
 const appleEpochAdjustment = 2082844800
 
@@ -85,21 +92,32 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	writer := bufio.NewWriter(os.Stdout)
 
+	resultInfo.totalFiles = len(filesList)
+
 	if len(filesList) > 0 {
 		numberFiles := len(filesList)
 		for i, file := range filesList {
-			fmt.Fprint(writer, fmt.Sprintf("%3d", int(float64(i)/float64(numberFiles)*100))+"%| "+file.fileInfo.Name())
+			fmt.Fprint(writer, fmt.Sprintf("%3d", int(float64(i+1)/float64(numberFiles)*100))+"%| "+file.fileInfo.Name())
 			dstFilePath, err := parseFile(file)
 			if err != nil {
-				fmt.Fprintln(writer, " "+err.Error())
-				continue
+				fmt.Fprint(writer, " "+err.Error()+"\n")
+				resultInfo.numberBadFiles++
+			} else {
+				fmt.Fprint(writer, " to "+dstFilePath+"\n")
+				resultInfo.numberOkFiles++
 			}
-			fmt.Fprint(writer, " to "+dstFilePath+"\n")
+
 			writer.Flush()
 			if syncSTDInOut {
 				scanner.Scan()
 			}
 		}
+	}
+
+	fmt.Fprintf(writer, fmt.Sprintf("Всего: %d файлов\nПеренесено: %d\nПроблемных: %d\n", resultInfo.totalFiles, resultInfo.numberOkFiles, resultInfo.numberBadFiles))
+	writer.Flush()
+	if syncSTDInOut {
+		scanner.Scan()
 	}
 
 	showHappyEnd()
@@ -136,6 +154,13 @@ func parseFile(file FileInfoStruct) (string, error) {
 	default:
 		created, err = sortImage(fd)
 		fileType = ImageType
+	}
+
+	if err != nil {
+		created2, err2 := sortImage(fd)
+		if err2 == nil {
+			created = created2
+		}
 	}
 
 	fd.Close()
