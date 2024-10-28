@@ -156,13 +156,6 @@ func parseFile(file FileInfoStruct) (string, error) {
 		fileType = ImageType
 	}
 
-	if err != nil {
-		created2, err2 := sortImage(fd)
-		if err2 == nil {
-			created = created2
-		}
-	}
-
 	fd.Close()
 
 	if err != nil {

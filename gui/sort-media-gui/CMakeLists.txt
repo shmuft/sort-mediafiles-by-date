@@ -74,13 +74,88 @@ set_target_properties(sort-media-gui PROPERTIES
 )
 
 include(GNUInstallDirs)
-install(TARGETS sort-media-gui
-    BUNDLE DESTINATION .
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
 
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(sort-media-gui)
 endif()
+
+install(TARGETS sort-media-gui
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+set(Qtx Qt${QT_VERSION_MAJOR})
+
+if(${Qtx}_FOUND AND WIN32 AND TARGET "${Qtx}::qmake" AND NOT TARGET "${Qtx}::windeployqt")
+    get_target_property(QMAKE_LOCATION ${Qtx}::qmake IMPORTED_LOCATION)
+
+    execute_process(
+        COMMAND "${QMAKE_LOCATION}" -query QT_INSTALL_PREFIX
+        RESULT_VARIABLE return_code
+        OUTPUT_VARIABLE QT_INSTALL_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    set(Windeployqt_POSSIBLE_LOCATION "${QT_INSTALL_PREFIX}/bin/windeployqt.exe")
+
+    if(EXISTS ${Windeployqt_POSSIBLE_LOCATION})
+        set(Windeployqt_LOCATION ${Windeployqt_POSSIBLE_LOCATION})
+
+        add_executable(Qt::windeployqt IMPORTED)
+        set_target_properties(Qt::windeployqt PROPERTIES
+            IMPORTED_LOCATION ${Windeployqt_LOCATION}
+        )
+    endif()
+endif()
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(Windeployqt
+    REQUIRED_VARS Windeployqt_LOCATION
+)
+
+if(TARGET "${Qtx}::qmake")
+    get_target_property(QMAKE_LOCATION ${Qtx}::qmake IMPORTED_LOCATION)
+
+    function(query_qmake PROPERTY)
+        execute_process(
+            COMMAND "${QMAKE_LOCATION}" -query ${PROPERTY}
+            RESULT_VARIABLE QMAKE_RESULT
+            ERROR_VARIABLE QMAKE_ERROR
+            OUTPUT_VARIABLE ${PROPERTY}
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+
+        if(NOT ${QMAKE_RESULT} EQUAL 0)
+            message (FATAL_ERROR "QMake query failed ${QMAKE_ERROR}")
+        endif()
+        set(${PROPERTY} ${${PROPERTY}} PARENT_SCOPE)
+    endfunction()
+
+    query_qmake(QT_INSTALL_PREFIX)
+    query_qmake(QT_INSTALL_PLUGINS)
+    query_qmake(QT_INSTALL_BINS)
+endif()
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(QtDirs
+    REQUIRED_VARS
+        QT_INSTALL_PREFIX
+        QT_INSTALL_PLUGINS
+        QT_INSTALL_BINS
+)
+
+set(SUF $<$<CONFIG:Debug>:d>)
+
+install(FILES
+    "${QT_INSTALL_BINS}/${Qtx}Core${SUF}.dll"
+    "${QT_INSTALL_BINS}/${Qtx}Gui${SUF}.dll"
+    "${QT_INSTALL_BINS}/${Qtx}Widgets${SUF}.dll"
+
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(FILES
+    "${QT_INSTALL_PLUGINS}/platforms/qwindows${SUF}.dll"
+    DESTINATION ${CMAKE_INSTALL_BINDIR}/plugins/platforms
+)
+
 
