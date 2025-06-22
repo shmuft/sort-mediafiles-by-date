@@ -22,7 +22,7 @@ MainWindow::MainWindow(QWidget *parent)
     selectVideoDestination = new QPushButton(tr("Выбрать куда складывать видео"));
     connect(selectVideoDestination, &QPushButton::clicked, this, &MainWindow::slot_selectVideoDestination);
 
-    parseButton = new QPushButton(tr("Распарсить файлы!"));
+    parseButton = new QPushButton(tr("Рассотировать!"));
     connect(parseButton, &QPushButton::clicked, this, &MainWindow::slot_parse);
 
     useModificationTimeAsCreatedCheckBox = new QCheckBox("Если нет даты в exif и в имени файла - использовать дату модификации файла");
@@ -75,7 +75,7 @@ MainWindow::~MainWindow() {
 
 void MainWindow::slot_selectSource()
 {
-    sourceDir = QFileDialog::getExistingDirectory(this, "Выбор папки для рассортировки", "", QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    sourceDir = QFileDialog::getExistingDirectory(this, "Выбор папки для рассортировки", sourceLabel->text(), QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
     if (sourceDir.isEmpty())
     {
         QMessageBox::warning(this, tr("Внимание!"), tr("Не выбрана директория"));

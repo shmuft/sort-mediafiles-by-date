@@ -157,5 +157,3 @@ install(FILES
     "${QT_INSTALL_PLUGINS}/platforms/qwindows${SUF}.dll"
     DESTINATION ${CMAKE_INSTALL_BINDIR}/plugins/platforms
 )
-
-

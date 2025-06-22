@@ -4,3 +4,9 @@ pkg
 projectFilesBackup
 src
 .git
+bin
+build
+clean
+CMakeLists.txt.user
+**/CMakeLists.txt.user
+.vscode/*

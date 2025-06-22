@@ -114,7 +114,7 @@ func main() {
 		}
 	}
 
-	fmt.Fprintf(writer, fmt.Sprintf("Всего: %d файлов\nПеренесено: %d\nПроблемных: %d\n", resultInfo.totalFiles, resultInfo.numberOkFiles, resultInfo.numberBadFiles))
+	fmt.Fprintf(writer, "Всего: %d файлов\nПеренесено: %d\nПроблемных: %d\n", resultInfo.totalFiles, resultInfo.numberOkFiles, resultInfo.numberBadFiles)
 	writer.Flush()
 	if syncSTDInOut {
 		scanner.Scan()
@@ -130,7 +130,6 @@ func parseFile(file FileInfoStruct) (string, error) {
 	}
 
 	var created time.Time
-
 	var fileType MediaFileType
 	switch strings.ToLower(filepath.Ext(file.absolutePath)) {
 	case ".mov":
@@ -156,7 +155,7 @@ func parseFile(file FileInfoStruct) (string, error) {
 		fileType = ImageType
 	}
 
-	fd.Close()
+	fd.Close() // Закрываем файл сразу после получения даты
 
 	if err != nil {
 		//Порпробуем выдрать дату из файла
@@ -318,6 +317,33 @@ func moveFileToNewLocation(filePath string, fileName string, fileType MediaFileT
 
 	err = os.Rename(filePath, dst)
 	if err != nil {
+		// Если ошибка связана с перемещением между дисками, копируем вручную
+		if linkErr, ok := err.(*os.LinkError); ok && (linkErr.Err.Error() == "invalid cross-device link" || linkErr.Err.Error() == "The system cannot move the file to a different disk drive.") {
+			srcFile, openErr := os.Open(filePath)
+			if openErr != nil {
+				return "", openErr
+			}
+			defer srcFile.Close()
+
+			dstFile, createErr := os.Create(dst)
+			if createErr != nil {
+				return "", createErr
+			}
+			defer dstFile.Close()
+
+			_, copyErr := io.Copy(dstFile, srcFile)
+			if copyErr != nil {
+				return "", copyErr
+			}
+			srcFile.Close()
+			dstFile.Close()
+
+			removeErr := os.Remove(filePath)
+			if removeErr != nil {
+				return "", removeErr
+			}
+			return dst, nil
+		}
 		return "", err
 	}
 
