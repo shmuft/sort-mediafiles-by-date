@@ -1,5 +1,7 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.16)
 project(sort-images-go)
+
+include(GNUInstallDirs)
 
 set(TARGET sort-images-go)
 set(GOPATH ${CMAKE_CURRENT_BINARY_DIR})
