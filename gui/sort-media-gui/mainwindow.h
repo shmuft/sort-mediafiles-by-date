@@ -5,7 +5,12 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QCheckBox>
+#include <QStringList>
+#include <QModelIndex>
 
+class QStringListModel;
+class QLineEdit;
+class QListView;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -29,12 +34,22 @@ private:
     QString imageDir;
     QString videoDir;
     bool useModificationTimeAsCreated;
+    
+    QStringListModel *model;
+    QLineEdit *userName;
+    QListView *settingsView;
+    QString currentProfile;
+    QStringList profileList;
 
-
-private slots:
+    void loadProfiles();
+    void saveCurrentProfile();
+    void loadProfile(const QString &profileName);
+    void slot_settingsClicked(const QModelIndex &index);
     void slot_selectSource();
     void slot_selectImageDestination();
     void slot_selectVideoDestination();
     void slot_parse();
+    void slot_addUser();
+    void slot_deleteUser();
 };
 #endif // MAINWINDOW_H
